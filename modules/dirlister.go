@@ -5,7 +5,7 @@ import (
     "os"
 )
 
-func Dirlister() {
+func Dirlister(args ...interface{}) {
     fmt.Println("[*] In dirlister module.")
     files, err := os.ReadDir(".")
     if err != nil {
