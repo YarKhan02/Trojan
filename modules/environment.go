@@ -5,9 +5,11 @@ import (
 	"os"
 )
 
-func Environment(args ...interface{}) {
+func Environment(args ...interface{}) interface{}{
 	fmt.Println("[*] In environment module.")
-	for _, env := range os.Environ() { 
+	envVars := os.Environ()
+	for _, env := range envVars { 
         fmt.Println(env) 
     }
+	return envVars
 }
