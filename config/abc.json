@@ -1,8 +1,8 @@
 [
     {
-        "modules": "dirlister"
+        "modules": "https://github.com/YarKhan02/Trojan/blob/main/modules/dirlister.go"
     },
     {
-        "modules": "environment"
+        "modules": "https://github.com/YarKhan02/Trojan/blob/main/modules/environment.go"
     }
 ]
