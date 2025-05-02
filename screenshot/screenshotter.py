@@ -34,4 +34,5 @@ def run(**args):
     screenshot()
     with open('screenshot.bmp', 'rb') as f:
         img = f.read()
-    return img
+    encoded_img = base64.b64encode(img).decode('utf-8')
+    return encoded_img

