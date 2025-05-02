@@ -1,4 +1,3 @@
-import base64
 import io
 import os
 from PIL import Image
