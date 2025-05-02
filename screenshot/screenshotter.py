@@ -1,7 +1,7 @@
 import base64
 import io
 import os
-from tkinter import Image
+from PIL import Image
 import win32api
 import win32gui
 import win32ui
