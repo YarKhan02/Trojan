@@ -43,10 +43,7 @@ def run(**args):
     img.save(buffer, format='PNG')
     png_data = buffer.getvalue()
 
-    # Step 2: Base64 encode the PNG data
-    encoded_data = base64.b64encode(png_data).decode()
-
     # Optional: cleanup BMP file to reduce disk trace
     os.remove('screenshot.bmp')
     
-    return encoded_data
+    return png_data
